@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - AI Car Damage System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-car-front-fill"></i> User Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/user/dashboard">
+                            <i class="bi bi-house-fill"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/user/all-parts">
+                            <i class="bi bi-shop"></i> Browse All Parts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <span class="navbar-text me-3">
+                            <i class="bi bi-person-circle"></i> {{ session.username }}
+                        </span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-danger btn-sm" href="/logout">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> <strong>New!</strong> Get instant insurance claim estimates and probability predictions!
+        </div>
+
+        <h2 class="mb-4"><i class="bi bi-camera-fill"></i> Car Damage Detection & Insurance Claim</h2>
+
+        <!-- Upload Section -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-cloud-upload-fill"></i> Upload Damaged Car Image</h5>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Image</label>
+                        <input type="file" class="form-control form-control-lg" id="imageFile" accept="image/*" required>
+                        <div class="form-text">Supported formats: JPG, JPEG, PNG (Max 16MB)</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-cpu-fill"></i> Analyze with AI
+                    </button>
+                </form>
+                <div id="uploadMessage" class="mt-3"></div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <!-- Damage Assessment -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-check-circle-fill"></i> AI Detection Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold"><i class="bi bi-tools"></i> Damaged Parts Detected:</h6>
+                            <ul id="damagedPartsList" class="list-group mb-3"></ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold"><i class="bi bi-currency-rupee"></i> Cost Breakdown:</h6>
+                            <ul id="costBreakdown" class="list-group mb-3"></ul>
+                            <div class="alert alert-info">
+                                <strong><i class="bi bi-calculator-fill"></i> Total Estimated Cost:</strong> 
+                                <h3 class="mb-0" id="totalCost">₹0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insurance Section -->
+            <div class="card mb-4 shadow-sm border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-shield-fill-check"></i> Insurance Claim Estimation</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Insurance Policy Selection -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Select Your Insurance Policy:</label>
+                            <select class="form-select form-select-lg" id="policySelect" onchange="calculateInsurance()">
+                                <option value="comprehensive">Comprehensive Insurance (90% coverage)</option>
+                                <option value="own_damage">Own Damage Cover (85% coverage)</option>
+                                <option value="collision">Collision Coverage (80% coverage)</option>
+                                <option value="third_party">Third Party (No coverage for own vehicle)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Vehicle Details (Optional):</label>
+                            <input type="text" class="form-control" id="vehicleModel" placeholder="e.g., Maruti Swift 2020">
+                            <input type="text" class="form-control mt-2" id="vehicleReg" placeholder="Registration Number">
+                        </div>
+                    </div>
+
+                    <!-- Insurance Breakdown -->
+                    <div id="insuranceBreakdown" style="display:none;">
+                        <h6 class="fw-bold text-primary mt-3">Insurance Claim Breakdown:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="text-muted">Policy Details</h6>
+                                        <p id="policyDetails"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body">
+                                        <h6>Insurance Payable</h6>
+                                        <h3 id="insurancePayable">₹0</h3>
+                                    </div>
+                                </div>
+                                <div class="card bg-warning text-dark mt-2">
+                                    <div class="card-body">
+                                        <h6>You Pay (Out-of-Pocket)</h6>
+                                        <h3 id="userPayable">₹0</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Claim Probability -->
+                        <div class="card mt-3" id="claimProbabilityCard">
+                            <div class="card-body">
+                                <h6 class="fw-bold"><i class="bi bi-graph-up"></i> Claim Approval Probability:</h6>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="progress flex-grow-1 me-3" style="height: 30px;">
+                                        <div id="probabilityBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <h4 class="mb-0" id="probabilityPercent">0%</h4>
+                                </div>
+                                <p class="mb-0" id="probabilityRecommendation"></p>
+                            </div>
+                        </div>
+
+                        <!-- Generate PDF Button -->
+                        <button class="btn btn-danger btn-lg mt-3 w-100" onclick="generatePDF()">
+                            <i class="bi bi-file-pdf-fill"></i> Generate Insurance Claim PDF Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <button class="btn btn-primary btn-lg w-100 shadow" onclick="window.location.href='/user/all-parts'">
+                        <i class="bi bi-shop"></i> Browse All Spare Parts
+                    </button>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <button class="btn btn-warning btn-lg w-100 shadow" onclick="findPartsForDamage()">
+                        <i class="bi bi-search"></i> Find Parts for Detected Damage
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parts List Section -->
+        <div id="partsSection" style="display: none;">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0" id="partsTitle">
+                        <i class="bi bi-box-seam"></i> Available Parts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="partsList" class="row"></div>
+                    <div id="noPartsMessage" style="display:none;" class="text-center text-muted">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p class="mt-2">No parts found matching your search.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let detectedParts = [];
+        let currentPrediction = null;
+
+        // Upload and analyze image
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('imageFile');
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            
+            document.getElementById('uploadMessage').innerHTML = 
+                '<div class="alert alert-info"><div class="spinner-border spinner-border-sm me-2"></div>Analyzing image with AI model...</div>';
+            
+            try {
+                const response = await fetch('/api/upload_damage_image', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentPrediction = data;
+                    detectedParts = data.damaged_parts || [];
+                    displayResults(data);
+                    document.getElementById('uploadMessage').innerHTML = 
+                        '<div class="alert alert-success"><i class="bi bi-check-circle-fill"></i> Analysis complete!</div>';
+                    
+                    // Auto-calculate insurance with default policy
+                    setTimeout(() => calculateInsurance(), 500);
+                    
+                    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    document.getElementById('uploadMessage').innerHTML = 
+                        '<div class="alert alert-danger"><i class="bi bi-x-circle-fill"></i> ' + data.message + '</div>';
+                }
+            } catch (error) {
+                document.getElementById('uploadMessage').innerHTML = 
+                    '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> Analysis failed.</div>';
+            }
+        });
+
+        function displayResults(data) {
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            if (!data.is_damaged) {
+                document.getElementById('damagedPartsList').innerHTML = `
+                    <li class="list-group-item list-group-item-success">
+                        <i class="bi bi-check-circle-fill"></i> <strong>No Damage Detected!</strong>
+                    </li>
+                `;
+                document.getElementById('costBreakdown').innerHTML = `
+                    <li class="list-group-item list-group-item-success">No repair costs required</li>
+                `;
+                document.getElementById('totalCost').textContent = '₹0';
+                return;
+            }
+            
+            const severityColors = {
+                'minor': 'success',
+                'moderate': 'warning',
+                'severe': 'danger'
+            };
+            const severityColor = severityColors[data.severity] || 'info';
+            
+            const partsList = document.getElementById('damagedPartsList');
+            partsList.innerHTML = `
+                <li class="list-group-item list-group-item-${severityColor}">
+                    <i class="bi bi-exclamation-triangle-fill"></i> <strong>Damage Severity:</strong> 
+                    <span class="badge bg-${severityColor} ms-2">${data.severity.toUpperCase()}</span>
+                </li>
+            `;
+            
+            data.damaged_parts.forEach(part => {
+                const confidence = data.confidence ? (data.confidence * 100).toFixed(1) + '%' : 'Detected';
+                partsList.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-wrench-adjustable"></i> ${part.toUpperCase().replace('_', ' ')}</span>
+                        <span class="badge bg-primary">${confidence}</span>
+                    </li>
+                `;
+            });
+            
+            const costList = document.getElementById('costBreakdown');
+            costList.innerHTML = '';
+            
+            for (let part in data.part_costs) {
+                costList.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span><i class="bi bi-tag-fill"></i> ${part.toUpperCase().replace('_', ' ')}</span>
+                        <strong class="text-primary">₹${data.part_costs[part].toLocaleString()}</strong>
+                    </li>
+                `;
+            }
+            
+            if (data.parts_total) {
+                costList.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between bg-light">
+                        <span><strong>Parts Subtotal</strong></span>
+                        <strong>₹${data.parts_total.toLocaleString()}</strong>
+                    </li>
+                `;
+            }
+            
+            if (data.labor_cost) {
+                costList.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between bg-light">
+                        <span><i class="bi bi-person-workspace"></i> Labor Cost (20%)</span>
+                        <strong>₹${data.labor_cost.toLocaleString()}</strong>
+                    </li>
+                `;
+            }
+            
+            document.getElementById('totalCost').textContent = '₹' + (data.total_cost || 0).toLocaleString();
+        }
+
+        async function calculateInsurance() {
+            if (!currentPrediction) return;
+            
+            const policyType = document.getElementById('policySelect').value;
+            
+            try {
+                const response = await fetch('/api/calculate_insurance', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        total_cost: currentPrediction.total_cost,
+                        policy_type: policyType,
+                        severity: currentPrediction.severity,
+                        num_damaged_parts: currentPrediction.damaged_parts.length
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayInsuranceBreakdown(data.insurance, data.claim_probability);
+                }
+            } catch (error) {
+                console.error('Insurance calculation error:', error);
+            }
+        }
+
+        function displayInsuranceBreakdown(insurance, claimProb) {
+            document.getElementById('insuranceBreakdown').style.display = 'block';
+            
+            document.getElementById('policyDetails').innerHTML = `
+                <strong>${insurance.policy_name}</strong><br>
+                Coverage: ${insurance.coverage_percentage}%<br>
+                Deductible: ₹${insurance.deductible.toLocaleString()}
+            `;
+            
+            document.getElementById('insurancePayable').textContent = '₹' + insurance.insurance_payable.toLocaleString();
+            document.getElementById('userPayable').textContent = '₹' + insurance.user_payable.toLocaleString();
+            
+            // Claim probability
+            const probBar = document.getElementById('probabilityBar');
+            probBar.style.width = claimProb.probability + '%';
+            probBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+            probBar.classList.add('bg-' + claimProb.color);
+            probBar.textContent = claimProb.probability + '%';
+            
+            document.getElementById('probabilityPercent').textContent = claimProb.probability + '%';
+            document.getElementById('probabilityRecommendation').innerHTML = 
+                `<span class="badge bg-${claimProb.color}">${claimProb.strength}</span> ${claimProb.recommendation}`;
+            
+            // Store for PDF generation
+            window.currentInsurance = insurance;
+            window.currentClaimProb = claimProb;
+        }
+
+        async function generatePDF() {
+            if (!currentPrediction) {
+                alert('Please upload and analyze an image first!');
+                return;
+            }
+            
+            const vehicleModel = document.getElementById('vehicleModel').value || 'Not specified';
+            const vehicleReg = document.getElementById('vehicleReg').value || 'Not specified';
+            
+            const pdfData = {
+                prediction_result: currentPrediction,
+                insurance_calc: window.currentInsurance,
+                claim_probability: window.currentClaimProb,
+                user_info: {
+                    name: '{{ session.username }}',
+                    email: '{{ session.get("email", "N/A") }}',
+                    phone: 'N/A'
+                },
+                vehicle_info: {
+                    model: vehicleModel,
+                    registration: vehicleReg,
+                    year: 'N/A'
+                }
+            };
+            
+            try {
+                const button = event.target;
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating PDF...';
+                
+                const response = await fetch('/api/generate_insurance_pdf', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(pdfData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Download PDF
+                    window.open(data.pdf_url, '_blank');
+                    alert('✅ PDF Report generated successfully! Report ID: ' + data.report_id);
+                } else {
+                    alert('❌ Error generating PDF: ' + data.message);
+                }
+                
+                button.disabled = false;
+                button.innerHTML = '<i class="bi bi-file-pdf-fill"></i> Generate Insurance Claim PDF Report';
+            } catch (error) {
+                alert('❌ Error generating PDF');
+                console.error(error);
+            }
+        }
+
+        async function findPartsForDamage() {
+            if (detectedParts.length === 0) {
+                alert('Please upload and analyze an image first!');
+                return;
+            }
+            
+            document.getElementById('partsSection').style.display = 'block';
+            document.getElementById('partsTitle').innerHTML = '<i class="bi bi-search"></i> Parts for Detected Damage';
+            
+            try {
+                const response = await fetch('/api/search_parts_by_damage', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({damaged_parts: detectedParts})
+                });
+                const data = await response.json();
+                displayPartsList(data.parts);
+                document.getElementById('partsSection').scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error fetching parts:', error);
+            }
+        }
+
+        function displayPartsList(parts) {
+            const partsList = document.getElementById('partsList');
+            const noPartsMsg = document.getElementById('noPartsMessage');
+            
+            if (parts.length === 0) {
+                partsList.innerHTML = '';
+                noPartsMsg.style.display = 'block';
+                return;
+            }
+            
+            noPartsMsg.style.display = 'none';
+            partsList.innerHTML = '';
+            
+            parts.forEach(part => {
+                partsList.innerHTML += `
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 shadow-sm hover-card">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary">
+                                    <i class="bi bi-gear-fill"></i> ${part.part_name.toUpperCase()}
+                                </h5>
+                                <hr>
+                                <p class="card-text">
+                                    <strong><i class="bi bi-currency-rupee"></i> Price:</strong> ₹${part.price.toLocaleString()}<br>
+                                    <strong><i class="bi bi-shop"></i> Shop:</strong> ${part.shop_name}<br>
+                                    <strong><i class="bi bi-geo-alt-fill"></i> Address:</strong> ${part.address}<br>
+                                    <strong><i class="bi bi-telephone-fill"></i> Contact:</strong> ${part.contact_number}
+                                </p>
+                                <button class="btn btn-primary w-100" onclick="notifyShop(${part.shop_id}, '${part.part_name}')">
+                                    <i class="bi bi-bell-fill"></i> Notify Shop
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function notifyShop(shopId, partName) {
+            try {
+                const response = await fetch('/api/notify_shop', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({shop_id: shopId, part_name: partName})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Shop owner has been notified!');
+                } else {
+                    alert('❌ Failed to notify shop');
+                }
+            } catch (error) {
+                alert('❌ Error sending notification');
+            }
+        }
+    </script>
+
+    <style>
+        .hover-card {
+            transition: transform 0.2s;
+        }
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+path: dataset
+train: train/images
+val: valid/images
+
+nc: 5
+names:
+  0: bumper
+  1: door
+  2: headlight
+  3: hood
+  4: fender

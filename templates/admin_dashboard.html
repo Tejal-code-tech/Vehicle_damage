@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">👨‍💼 Admin Dashboard</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Admin Panel</span>
+                <a class="nav-link" href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5>Total Users</h5>
+                        <h2 id="totalUsers">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5>Total Shops</h5>
+                        <h2 id="totalShops">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5>Total Parts</h5>
+                        <h2 id="totalParts">0</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#users">Users</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#shops">Shop Owners</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#parts">Spare Parts</button>
+            </li>
+        </ul>
+
+        <div class="tab-content mt-3">
+            <!-- Users Tab -->
+            <div class="tab-pane fade show active" id="users">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>All Users</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Type</th>
+                                        <th>Registered</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shops Tab -->
+            <div class="tab-pane fade" id="shops">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Shop Owners Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Shop Name</th>
+                                        <th>Owner</th>
+                                        <th>Contact</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shopsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parts Tab -->
+            <div class="tab-pane fade" id="parts">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>All Spare Parts</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Part Name</th>
+                                        <th>Price</th>
+                                        <th>Shop</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="partsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load users
+        async function loadUsers() {
+            const response = await fetch('/api/admin/get_users');
+            const data = await response.json();
+            
+            const table = document.getElementById('usersTable');
+            table.innerHTML = '';
+            
+            document.getElementById('totalUsers').textContent = data.users.length;
+            
+            data.users.forEach(user => {
+                table.innerHTML += `
+                    <tr>
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td><span class="badge bg-info">${user.user_type}</span></td>
+                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Load shops
+        async function loadShops() {
+            const response = await fetch('/api/admin/get_shops');
+            const data = await response.json();
+            
+            const table = document.getElementById('shopsTable');
+            table.innerHTML = '';
+            
+            document.getElementById('totalShops').textContent = data.shops.length;
+            
+            data.shops.forEach(shop => {
+                const statusBadge = shop.is_approved ? 
+                    '<span class="badge bg-success">Approved</span>' : 
+                    '<span class="badge bg-warning">Pending</span>';
+                
+                const approveBtn = shop.is_approved ? 
+                    `<button class="btn btn-sm btn-danger" onclick="approveShop(${shop.id}, 0)">Block</button>` :
+                    `<button class="btn btn-sm btn-success" onclick="approveShop(${shop.id}, 1)">Approve</button>`;
+                
+                table.innerHTML += `
+                    <tr>
+                        <td>${shop.id}</td>
+                        <td>${shop.shop_name}</td>
+                        <td>${shop.username}</td>
+                        <td>${shop.contact_number}</td>
+                        <td>${statusBadge}</td>
+                        <td>${approveBtn}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Load parts
+        async function loadParts() {
+            const response = await fetch('/api/admin/get_all_parts');
+            const data = await response.json();
+            
+            const table = document.getElementById('partsTable');
+            table.innerHTML = '';
+            
+            document.getElementById('totalParts').textContent = data.parts.length;
+            
+            data.parts.forEach(part => {
+                const status = part.availability ? 
+                    '<span class="badge bg-success">Available</span>' : 
+                    '<span class="badge bg-secondary">Unavailable</span>';
+                
+                table.innerHTML += `
+                    <tr>
+                        <td>${part.id}</td>
+                        <td>${part.part_name}</td>
+                        <td>₹${part.price}</td>
+                        <td>${part.shop_name}</td>
+                        <td>${status}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deletePart(${part.id})">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Approve/Block shop
+        async function approveShop(shopId, isApproved) {
+            if (!confirm('Are you sure?')) return;
+            
+            try {
+                const response = await fetch('/api/admin/approve_shop', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({shop_id: shopId, is_approved: isApproved})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    loadShops();
+                }
+            } catch (error) {
+                alert('Error updating shop status');
+            }
+        }
+
+        // Delete part
+        async function deletePart(partId) {
+            if (!confirm('Delete this part? This action cannot be undone.')) return;
+            
+            try {
+                const response = await fetch('/api/admin/delete_part', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({part_id: partId})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    loadParts();
+                }
+            } catch (error) {
+                alert('Error deleting part');
+            }
+        }
+
+        // Load all data
+        loadUsers();
+        loadShops();
+        loadParts();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

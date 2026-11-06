@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Owner Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand">🏪 Shop Owner Dashboard</a>
+        <div class="navbar-nav ms-auto">
+            <span class="navbar-text me-3">Welcome, {{ session.username }}</span>
+            <a class="nav-link" href="/logout">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="row">
+
+        <!-- LEFT COLUMN -->
+        <div class="col-md-4">
+
+            <!-- Shop Profile -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="bi bi-shop"></i> Shop Profile</h5>
+                </div>
+                <div class="card-body" id="shopProfile">Loading...</div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5>
+                        <i class="bi bi-bell-fill"></i> Notifications
+                        <span class="badge bg-danger" id="notifCount">0</span>
+                    </h5>
+                </div>
+                <div class="card-body" id="notificationsList" style="max-height: 400px; overflow-y: auto;">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="col-md-8">
+
+            <!-- Upload Part -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="bi bi-plus-circle-fill"></i> Upload Spare Part</h5>
+                </div>
+                <div class="card-body">
+                    <form id="uploadPartForm" enctype="multipart/form-data">
+                        <input class="form-control mb-2" name="part_name" placeholder="Part name" required>
+                        <input class="form-control mb-2" type="number" name="price" placeholder="Price" required>
+                        <input class="form-control mb-2" name="car_model" placeholder="Car model (optional)">
+                        <input class="form-control mb-3" type="file" name="image">
+                        <button class="btn btn-success w-100">
+                            <i class="bi bi-upload"></i> Upload Part
+                        </button>
+                    </form>
+                    <div id="uploadMessage" class="mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Parts Table -->
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5><i class="bi bi-list-ul"></i> My Spare Parts</h5>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Part</th>
+                                <th>Price</th>
+                                <th>Model</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="partsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5>Edit Part</h5>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit_id">
+                <input class="form-control mb-2" id="edit_name">
+                <input class="form-control mb-2" id="edit_price" type="number">
+                <input class="form-control mb-2" id="edit_model">
+                <select class="form-control" id="edit_status">
+                    <option value="1">Available</option>
+                    <option value="0">Out of Stock</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// Load profile
+async function loadProfile() {
+    const r = await fetch('/api/shop/get_profile');
+    const d = await r.json();
+    if (d.success) {
+        document.getElementById('shopProfile').innerHTML = `
+            <p><strong>${d.profile.shop_name}</strong></p>
+            <p>${d.profile.address}</p>
+            <p>${d.profile.contact_number}</p>
+            <p>${d.profile.is_approved ? 
+                '<span class="badge bg-success">Approved</span>' :
+                '<span class="badge bg-warning">Pending</span>'}
+            </p>`;
+    }
+}
+
+// Load parts
+async function loadParts() {
+    const r = await fetch('/api/shop/get_parts');
+    const d = await r.json();
+    const t = document.getElementById('partsTable');
+    t.innerHTML = '';
+
+    if (!d.parts.length) {
+        t.innerHTML = '<tr><td colspan="6" class="text-center">No parts</td></tr>';
+        return;
+    }
+
+    d.parts.forEach(p => {
+        t.innerHTML += `
+        <tr>
+            <td>${p.part_name}</td>
+            <td>₹${p.price}</td>
+            <td>${p.car_model || 'N/A'}</td>
+            <td>${p.availability ? 'Available' : 'Out'}</td>
+            <td>${new Date(p.created_at).toLocaleDateString()}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="openEdit(${p.id},'${p.part_name}',${p.price},'${p.car_model || ''}',${p.availability})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deletePart(${p.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+}
+
+// Notifications
+async function loadNotifications() {
+    const r = await fetch('/api/shop/get_notifications');
+    const d = await r.json();
+    const box = document.getElementById('notificationsList');
+    document.getElementById('notifCount').innerText = d.notifications.length;
+    box.innerHTML = d.notifications.length
+        ? d.notifications.map(n => `
+            <div class="alert alert-info">
+                <small>${new Date(n.created_at).toLocaleString()}</small>
+                <p>${n.message}</p>
+            </div>`).join('')
+        : '<p class="text-muted">No notifications</p>';
+}
+
+// Upload
+document.getElementById('uploadPartForm').onsubmit = async e => {
+    e.preventDefault();
+    const r = await fetch('/api/shop/upload_part', {
+        method: 'POST',
+        body: new FormData(e.target)
+    });
+    const d = await r.json();
+    document.getElementById('uploadMessage').innerHTML =
+        `<div class="alert alert-${d.success ? 'success' : 'danger'}">${d.message}</div>`;
+    loadParts();
+};
+
+// Edit
+function openEdit(id, name, price, model, status) {
+    edit_id.value = id;
+    edit_name.value = name;
+    edit_price.value = price;
+    edit_model.value = model;
+    edit_status.value = status;
+    new bootstrap.Modal(editModal).show();
+}
+
+async function saveEdit() {
+    await fetch('/api/shop/update_part', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            part_id: edit_id.value,
+            part_name: edit_name.value,
+            price: edit_price.value,
+            car_model: edit_model.value,
+            availability: edit_status.value
+        })
+    });
+    bootstrap.Modal.getInstance(editModal).hide();
+    loadParts();
+}
+
+// Delete
+async function deletePart(id) {
+    if (!confirm('Delete this part?')) return;
+    await fetch('/api/shop/delete_part', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ part_id: id })
+    });
+    loadParts();
+}
+
+// Init
+loadProfile();
+loadParts();
+loadNotifications();
+setInterval(loadNotifications, 30000);
+</script>
+
+</body>
+</html>
